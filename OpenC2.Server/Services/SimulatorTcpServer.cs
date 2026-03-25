@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using OpenC2.Server.Models.Transport;
+using OpenC2.Transport;
 using ProtoBuf;
 
 namespace OpenC2.Server.Services;
@@ -111,10 +111,26 @@ public sealed class SimulatorTcpServer : BackgroundService
                 }
 
                 using var payloadStream = new MemoryStream(payload, writable: false);
-                var frame = Serializer.Deserialize<SimulatorFrame>(payloadStream);
+                var frame = Serializer.Deserialize<TransportEnvelope>(payloadStream);
                 if (frame.Event is not null)
                 {
-                    _store.HandleSimulatorEvent(frame.Event);
+                    _store.HandleSituationEvent(frame.Event);
+                }
+
+                if (frame.SituationUpdate is not null)
+                {
+                    foreach (var situationEvent in frame.SituationUpdate.Events)
+                    {
+                        _store.HandleSituationEvent(situationEvent);
+                    }
+
+                    foreach (var trackedObject in frame.SituationUpdate.TrackedObjects)
+                    {
+                        if (!string.IsNullOrWhiteSpace(trackedObject.TrackId))
+                        {
+                            _store.UpsertTrackedObject(trackedObject);
+                        }
+                    }
                 }
 
                 var message = frame.Track;
@@ -151,7 +167,7 @@ public sealed class SimulatorTcpServer : BackgroundService
             return;
         }
 
-        var frame = new SimulatorFrame
+        var frame = new TransportEnvelope
         {
             Reclassification = command
         };
@@ -176,7 +192,7 @@ public sealed class SimulatorTcpServer : BackgroundService
             return;
         }
 
-        var frame = new SimulatorFrame
+        var frame = new TransportEnvelope
         {
             SpawnTrack = command
         };
@@ -201,7 +217,7 @@ public sealed class SimulatorTcpServer : BackgroundService
             return;
         }
 
-        var frame = new SimulatorFrame
+        var frame = new TransportEnvelope
         {
             DeleteTrack = command
         };
@@ -226,7 +242,7 @@ public sealed class SimulatorTcpServer : BackgroundService
             return;
         }
 
-        var frame = new SimulatorFrame
+        var frame = new TransportEnvelope
         {
             BehaviorOrder = command
         };
@@ -244,7 +260,7 @@ public sealed class SimulatorTcpServer : BackgroundService
         }
     }
 
-    private static async Task SendAsync(ClientSession session, SimulatorFrame frame)
+    private static async Task SendAsync(ClientSession session, TransportEnvelope frame)
     {
         using var payloadStream = new MemoryStream();
         Serializer.Serialize(payloadStream, frame);

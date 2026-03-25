@@ -34,3 +34,5 @@ C:/Users/samta/Desktop/openc2/OpenC2/OpenC2.Simulator/obj/Debug/net8.0/ref/OpenC
 /Users/samtanner/openc2/OpenC2/OpenC2.Simulator/obj/Debug/net8.0/OpenC2.Simulator.pdb
 /Users/samtanner/openc2/OpenC2/OpenC2.Simulator/obj/Debug/net8.0/OpenC2.Simulator.genruntimeconfig.cache
 /Users/samtanner/openc2/OpenC2/OpenC2.Simulator/obj/Debug/net8.0/ref/OpenC2.Simulator.dll
+/Users/samtanner/openc2/OpenC2/OpenC2.Simulator/bin/Debug/net8.0/OpenC2.Transport.dll
+/Users/samtanner/openc2/OpenC2/OpenC2.Simulator/bin/Debug/net8.0/OpenC2.Transport.pdb

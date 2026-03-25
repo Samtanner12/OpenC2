@@ -1,0 +1,12 @@
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/bin/Debug/net8.0/OpenC2.Transport.deps.json
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/bin/Debug/net8.0/OpenC2.Transport.dll
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/bin/Debug/net8.0/OpenC2.Transport.pdb
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.csproj.AssemblyReference.cache
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.GeneratedMSBuildEditorConfig.editorconfig
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.AssemblyInfoInputs.cache
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.AssemblyInfo.cs
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.csproj.CoreCompileInputs.cache
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.dll
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/refint/OpenC2.Transport.dll
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/OpenC2.Transport.pdb
+/Users/samtanner/openc2/OpenC2/OpenC2.Transport/obj/Debug/net8.0/ref/OpenC2.Transport.dll

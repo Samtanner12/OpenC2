@@ -2,32 +2,275 @@ syntax = "proto3";
 
 package openc2.transport;
 
-message SimulatorFrame {
+message TransportEnvelope {
   TrackMessage track = 1;
   TrackReclassificationCommand reclassification = 2;
+  SpawnTrackCommand spawn_track = 3;
+  DeleteTrackCommand delete_track = 4;
+  TrackBehaviorOrderCommand behavior_order = 5;
+  SituationEvent event = 6;
+  SituationUpdate situation_update = 7;
+  string envelope_id = 8;
+  int64 created_at_unix_ms = 9;
+  TransportPeer source = 10;
+  TransportPeer destination = 11;
+  string profile = 12;
+  CommandMessage command_message = 13;
+  ResponseMessage response_message = 14;
+  EventMessage event_message = 15;
+  CapabilityAdvertisement capability_advertisement = 16;
+}
+
+message SituationUpdate {
+  string source_system = 1;
+  string update_id = 2;
+  int64 generated_at_unix_ms = 3;
+  repeated TrackedObject tracked_objects = 4;
+  repeated DetectingObject detecting_objects = 5;
+  repeated DetectedObject detected_objects = 6;
+  repeated SituationEvent events = 7;
+  repeated Emplacement emplacements = 8;
+  repeated GroundVehicle ground_vehicles = 9;
+  repeated Unit units = 10;
+}
+
+message TransportPeer {
+  string system_id = 1;
+  string component_id = 2;
+  string role = 3;
+  string instance_id = 4;
+  string organization = 5;
+}
+
+message NameValue {
+  string name = 1;
+  string value = 2;
+  string value_type = 3;
+}
+
+message CommandMessage {
+  string command_id = 1;
+  string correlation_id = 2;
+  string action = 3;
+  string target_type = 4;
+  string actuator_profile = 5;
+  repeated NameValue target_specifiers = 6;
+  repeated NameValue arguments = 7;
+  repeated string requested_response_types = 8;
+  string description = 9;
+}
+
+message ResponseMessage {
+  string response_id = 1;
+  string request_id = 2;
+  int32 status_code = 3;
+  string status_text = 4;
+  string status_detail = 5;
+  repeated NameValue results = 6;
+}
+
+message EventMessage {
+  string event_id = 1;
+  string correlation_id = 2;
+  string event_type = 3;
+  string severity = 4;
+  int64 occurred_at_unix_ms = 5;
+  string summary = 6;
+  string detail = 7;
+  repeated NameValue attributes = 8;
+}
+
+message CapabilityAdvertisement {
+  string advertisement_id = 1;
+  string subject_id = 2;
+  string subject_role = 3;
+  repeated string actuator_profiles = 4;
+  repeated string supported_actions = 5;
+  repeated string supported_target_types = 6;
+  repeated string transfer_bindings = 7;
+  repeated string serializations = 8;
+  repeated NameValue additional_capabilities = 9;
+}
+
+message GeoPosition {
+  double latitude = 1;
+  double longitude = 2;
+  double altitude_meters = 3;
+}
+
+message Kinematics {
+  double heading_degrees = 1;
+  double airspeed_meters_per_second = 2;
+  double ground_speed_meters_per_second = 3;
+  double vertical_speed_meters_per_second = 4;
+  double track_confidence = 5;
+}
+
+message IdentityData {
+  string callsign = 1;
+  string source = 2;
+  string vehicle_type = 3;
+  string classification = 4;
+  string affiliation = 5;
+  string status = 6;
+  string alert_level = 7;
+  string object_kind = 8;
+  string domain = 9;
+}
+
+message CommandIntent {
+  string behavior = 1;
+  optional double latitude = 2;
+  optional double longitude = 3;
+  string target_track_id = 4;
+  optional double radius_meters = 5;
+  optional double cruise_altitude_meters = 6;
+  optional double effective_range_meters = 7;
+}
+
+message TrackedObject {
+  string track_id = 1;
+  IdentityData identity = 2;
+  GeoPosition position = 3;
+  Kinematics kinematics = 4;
+  double battery_minutes = 5;
+  CommandIntent command = 6;
+  string behavior = 7;
+  int64 last_observed_unix_ms = 8;
+  string short_status = 9;
+  string long_status = 10;
+}
+
+message DetectingObject {
+  string detector_id = 1;
+  string name = 2;
+  string source = 3;
+  string sensor_type = 4;
+  GeoPosition position = 5;
+  Kinematics kinematics = 6;
+  string affiliation = 7;
+  double confidence = 8;
+  double coverage_radius_meters = 9;
+}
+
+message DetectedObject {
+  string detection_id = 1;
+  string detector_id = 2;
+  string related_track_id = 3;
+  GeoPosition position = 4;
+  Kinematics kinematics = 5;
+  string classification = 6;
+  string affiliation = 7;
+  double confidence = 8;
+  string raw_label = 9;
+  int64 observed_at_unix_ms = 10;
+}
+
+message Emplacement {
+  string emplacement_id = 1;
+  string name = 2;
+  string category = 3;
+  IdentityData identity = 4;
+  GeoPosition position = 5;
+  string short_status = 6;
+  string long_status = 7;
+  double coverage_radius_meters = 8;
+  int64 last_observed_unix_ms = 9;
+}
+
+message GroundVehicle {
+  string vehicle_id = 1;
+  IdentityData identity = 2;
+  GeoPosition position = 3;
+  Kinematics kinematics = 4;
+  string short_status = 5;
+  string long_status = 6;
+  int64 last_observed_unix_ms = 7;
+}
+
+message Unit {
+  string unit_id = 1;
+  IdentityData identity = 2;
+  GeoPosition position = 3;
+  Kinematics kinematics = 4;
+  string short_status = 5;
+  string long_status = 6;
+  double strength_estimate = 7;
+  int64 last_observed_unix_ms = 8;
 }
 
 message TrackMessage {
-  string trackId = 1;
+  string track_id = 1;
   string callsign = 2;
   string source = 3;
-  string vehicleType = 4;
+  string vehicle_type = 4;
   string classification = 5;
   string affiliation = 6;
   string status = 7;
-  string alertLevel = 8;
+  string alert_level = 8;
   double latitude = 9;
   double longitude = 10;
-  double altitudeMeters = 11;
-  double speedMetersPerSecond = 12;
-  double headingDegrees = 13;
-  double confidence = 14;
+  double altitude_meters = 11;
+  double speed_meters_per_second = 12;
+  double ground_speed_meters_per_second = 13;
+  double vertical_speed_meters_per_second = 14;
+  double battery_minutes = 15;
+  double heading_degrees = 16;
+  double confidence = 17;
+  string behavior = 18;
+  optional double command_latitude = 19;
+  optional double command_longitude = 20;
+  string command_target_track_id = 21;
+  optional double command_radius_meters = 22;
+  optional double command_cruise_altitude_meters = 23;
+  optional double command_effective_range_meters = 24;
 }
 
 message TrackReclassificationCommand {
-  string trackId = 1;
-  string classification = 2;
-  string affiliation = 3;
-  string status = 4;
-  string alertLevel = 5;
+  string track_id = 1;
+  string vehicle_type = 2;
+  string classification = 3;
+  string affiliation = 4;
+  string status = 5;
+  string alert_level = 6;
+}
+
+message SpawnTrackCommand {
+  string track_id = 1;
+  string callsign = 2;
+  string vehicle_type = 3;
+  string classification = 4;
+  string affiliation = 5;
+  string alert_level = 6;
+  string status = 7;
+  double latitude = 8;
+  double longitude = 9;
+  double altitude_meters = 10;
+  double speed_meters_per_second = 11;
+  double heading_degrees = 12;
+  string behavior = 13;
+  double battery_minutes = 14;
+  double cruise_altitude_meters = 15;
+}
+
+message DeleteTrackCommand {
+  string track_id = 1;
+}
+
+message TrackBehaviorOrderCommand {
+  string track_id = 1;
+  string behavior = 2;
+  double latitude = 3;
+  double longitude = 4;
+  string target_track_id = 5;
+  double standoff_radius_meters = 6;
+  double cruise_altitude_meters = 7;
+  double effective_range_meters = 8;
+}
+
+message SituationEvent {
+  string event_type = 1;
+  string track_id = 2;
+  string target_track_id = 3;
+  string notes = 4;
 }

@@ -22,6 +22,7 @@
     <ProjectReference Include="..\openc2.client\openc2.client.esproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+    <ProjectReference Include="..\OpenC2.Transport\OpenC2.Transport.csproj" />
   </ItemGroup>
 
 </Project>

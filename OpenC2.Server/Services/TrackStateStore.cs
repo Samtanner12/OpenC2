@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using OpenC2.Server.Models;
-using OpenC2.Server.Models.Transport;
+using OpenC2.Transport;
 
 namespace OpenC2.Server.Services;
 
@@ -644,7 +644,38 @@ public sealed class TrackStateStore
         NotifySnapshotChanged();
     }
 
-    public void HandleSimulatorEvent(SimulatorEvent simulatorEvent)
+    public void UpsertTrackedObject(TrackedObject trackedObject)
+    {
+        UpsertTrack(new TrackMessage
+        {
+            TrackId = trackedObject.TrackId,
+            Callsign = trackedObject.Identity.Callsign,
+            Source = trackedObject.Identity.Source,
+            VehicleType = trackedObject.Identity.VehicleType,
+            Classification = trackedObject.Identity.Classification,
+            Affiliation = trackedObject.Identity.Affiliation,
+            Status = trackedObject.Identity.Status,
+            AlertLevel = trackedObject.Identity.AlertLevel,
+            Latitude = trackedObject.Position.Latitude,
+            Longitude = trackedObject.Position.Longitude,
+            AltitudeMeters = trackedObject.Position.AltitudeMeters,
+            SpeedMetersPerSecond = trackedObject.Kinematics.AirspeedMetersPerSecond,
+            GroundSpeedMetersPerSecond = trackedObject.Kinematics.GroundSpeedMetersPerSecond,
+            VerticalSpeedMetersPerSecond = trackedObject.Kinematics.VerticalSpeedMetersPerSecond,
+            BatteryMinutes = trackedObject.BatteryMinutes,
+            HeadingDegrees = trackedObject.Kinematics.HeadingDegrees,
+            Confidence = trackedObject.Kinematics.TrackConfidence,
+            Behavior = string.IsNullOrWhiteSpace(trackedObject.Behavior) ? trackedObject.Command.Behavior : trackedObject.Behavior,
+            CommandLatitude = trackedObject.Command.Latitude,
+            CommandLongitude = trackedObject.Command.Longitude,
+            CommandTargetTrackId = trackedObject.Command.TargetTrackId,
+            CommandRadiusMeters = trackedObject.Command.RadiusMeters,
+            CommandCruiseAltitudeMeters = trackedObject.Command.CruiseAltitudeMeters,
+            CommandEffectiveRangeMeters = trackedObject.Command.EffectiveRangeMeters
+        });
+    }
+
+    public void HandleSituationEvent(SituationEvent simulatorEvent)
     {
         if (string.IsNullOrWhiteSpace(simulatorEvent.EventType))
         {

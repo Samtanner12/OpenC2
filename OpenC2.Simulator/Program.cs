@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.Net.Http;
 using System.Text.Json;
-using OpenC2.Simulator.Models;
+using OpenC2.Transport;
 using ProtoBuf;
 
 var host = args.Length > 0 ? args[0] : "127.0.0.1";
@@ -34,7 +34,7 @@ while (true)
     }
 
     var byTrackId = currentTracks.ToDictionary(track => track.Id, StringComparer.OrdinalIgnoreCase);
-    var simulatorEvents = new List<SimulatorEvent>();
+    var situationEvents = new List<SituationEvent>();
     var destroyedTrackIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var weatherSamples = new Dictionary<string, WeatherSample?>(StringComparer.OrdinalIgnoreCase);
 
@@ -50,7 +50,7 @@ while (true)
             continue;
         }
 
-        track.Advance(byTrackId, destroyedTrackIds, simulatorEvents, weatherSamples.GetValueOrDefault(track.Id));
+        track.Advance(byTrackId, destroyedTrackIds, situationEvents, weatherSamples.GetValueOrDefault(track.Id));
     }
 
     if (destroyedTrackIds.Count > 0)
@@ -61,28 +61,40 @@ while (true)
         }
     }
 
-    foreach (var track in currentTracks)
-    {
-        if (destroyedTrackIds.Contains(track.Id))
-        {
-            continue;
-        }
+    var trackedObjects = currentTracks
+        .Where(track => !destroyedTrackIds.Contains(track.Id))
+        .Select(track => track.ToTrackedObject())
+        .ToList();
 
-        var message = track.ToMessage();
-        await SendAsync(stream, new SimulatorFrame { Track = message });
-        Console.WriteLine($"{DateTime.Now:T} sent {message.TrackId} {message.Callsign} {message.Latitude:F5},{message.Longitude:F5}");
+    if (trackedObjects.Count > 0)
+    {
+        await SendAsync(stream, new TransportEnvelope
+        {
+            SituationUpdate = new SituationUpdate
+            {
+                SourceSystem = "OpenC2.Simulator",
+                UpdateId = Guid.NewGuid().ToString("N"),
+                GeneratedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                TrackedObjects = trackedObjects
+            }
+        });
+
+        foreach (var trackedObject in trackedObjects)
+        {
+            Console.WriteLine($"{DateTime.Now:T} sent {trackedObject.TrackId} {trackedObject.Identity.Callsign} {trackedObject.Position.Latitude:F5},{trackedObject.Position.Longitude:F5}");
+        }
     }
 
-    foreach (var simulatorEvent in simulatorEvents)
+    foreach (var situationEvent in situationEvents)
     {
-        await SendAsync(stream, new SimulatorFrame { Event = simulatorEvent });
-        Console.WriteLine($"{DateTime.Now:T} event {simulatorEvent.EventType} {simulatorEvent.TrackId}->{simulatorEvent.TargetTrackId}");
+        await SendAsync(stream, new TransportEnvelope { Event = situationEvent });
+        Console.WriteLine($"{DateTime.Now:T} event {situationEvent.EventType} {situationEvent.TrackId}->{situationEvent.TargetTrackId}");
     }
 
     await Task.Delay(TimeSpan.FromSeconds(1));
 }
 
-static async Task SendAsync(NetworkStream stream, SimulatorFrame frame)
+static async Task SendAsync(NetworkStream stream, TransportEnvelope frame)
 {
     using var payloadStream = new MemoryStream();
     Serializer.Serialize(payloadStream, frame);
@@ -122,7 +134,7 @@ static async Task ReceiveAsync(NetworkStream stream, List<SimulatedTrackState> t
         }
 
         using var payloadStream = new MemoryStream(payload, writable: false);
-        var frame = Serializer.Deserialize<SimulatorFrame>(payloadStream);
+        var frame = Serializer.Deserialize<TransportEnvelope>(payloadStream);
         var command = frame.Reclassification;
         if (command is not null && !string.IsNullOrWhiteSpace(command.TrackId))
         {
@@ -295,7 +307,7 @@ file sealed class SimulatedTrackState
     public void Advance(
         IReadOnlyDictionary<string, SimulatedTrackState> tracksById,
         ISet<string> destroyedTrackIds,
-        ICollection<SimulatorEvent> simulatorEvents,
+        ICollection<SituationEvent> simulatorEvents,
         WeatherSample? weather)
     {
         switch (Behavior)
@@ -376,34 +388,52 @@ file sealed class SimulatedTrackState
         MoveWithGroundIntent(northErrorMeters, eastErrorMeters, maxAirspeed, weather);
     }
 
-    public TrackMessage ToMessage()
+    public TrackedObject ToTrackedObject()
     {
-        return new TrackMessage
+        return new TrackedObject
         {
             TrackId = Id,
-            Callsign = Callsign,
-            Source = "simulator",
-            VehicleType = VehicleType,
-            Classification = Classification,
-            Affiliation = Affiliation,
-            Status = Status,
-            AlertLevel = AlertLevel,
-            Latitude = Latitude,
-            Longitude = Longitude,
-            AltitudeMeters = AltitudeMeters,
-            SpeedMetersPerSecond = SpeedMetersPerSecond,
-            GroundSpeedMetersPerSecond = GroundSpeedMetersPerSecond,
-            VerticalSpeedMetersPerSecond = VerticalSpeedMetersPerSecond,
+            Identity = new IdentityData
+            {
+                Callsign = Callsign,
+                Source = "simulator",
+                VehicleType = VehicleType,
+                Classification = Classification,
+                Affiliation = Affiliation,
+                Status = Status,
+                AlertLevel = AlertLevel,
+                ObjectKind = VehicleType.Equals("Ground Vehicle", StringComparison.OrdinalIgnoreCase) ? "GroundVehicle" : "TrackedObject",
+                Domain = VehicleType.Equals("Ground Vehicle", StringComparison.OrdinalIgnoreCase) ? "Ground" : "Air"
+            },
+            Position = new GeoPosition
+            {
+                Latitude = Latitude,
+                Longitude = Longitude,
+                AltitudeMeters = AltitudeMeters
+            },
+            Kinematics = new Kinematics
+            {
+                AirspeedMetersPerSecond = SpeedMetersPerSecond,
+                GroundSpeedMetersPerSecond = GroundSpeedMetersPerSecond,
+                VerticalSpeedMetersPerSecond = VerticalSpeedMetersPerSecond,
+                HeadingDegrees = HeadingDegrees,
+                TrackConfidence = 0.82
+            },
             BatteryMinutes = BatteryMinutes,
-            HeadingDegrees = HeadingDegrees,
-            Confidence = 0.82,
+            LastObservedUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             Behavior = Behavior,
-            CommandLatitude = Behavior is "Move To Position" or "Surveil Location" ? _desiredLatitude : _guardLatitude,
-            CommandLongitude = Behavior is "Move To Position" or "Surveil Location" ? _desiredLongitude : _guardLongitude,
-            CommandTargetTrackId = _targetTrackId,
-            CommandRadiusMeters = Behavior is "Surveil Location" or "Surveil Track" ? _standoffRadiusMeters : null,
-            CommandCruiseAltitudeMeters = _plannedCruiseAltitudeMeters > 0 ? _plannedCruiseAltitudeMeters : null,
-            CommandEffectiveRangeMeters = _effectiveRangeMeters > 0 ? _effectiveRangeMeters : null
+            ShortStatus = Status,
+            LongStatus = $"{Callsign} {Status} with {AlertLevel.ToLowerInvariant()} alert posture.",
+            Command = new CommandIntent
+            {
+                Behavior = Behavior,
+                Latitude = Behavior is "Move To Position" or "Surveil Location" ? _desiredLatitude : _guardLatitude,
+                Longitude = Behavior is "Move To Position" or "Surveil Location" ? _desiredLongitude : _guardLongitude,
+                TargetTrackId = _targetTrackId,
+                RadiusMeters = Behavior is "Surveil Location" or "Surveil Track" ? _standoffRadiusMeters : null,
+                CruiseAltitudeMeters = _plannedCruiseAltitudeMeters > 0 ? _plannedCruiseAltitudeMeters : null,
+                EffectiveRangeMeters = _effectiveRangeMeters > 0 ? _effectiveRangeMeters : null
+            }
         };
     }
 
@@ -533,7 +563,7 @@ file sealed class SimulatedTrackState
     private void AdvanceEngage(
         SimulatedTrackState target,
         ISet<string> destroyedTrackIds,
-        ICollection<SimulatorEvent> simulatorEvents,
+        ICollection<SituationEvent> simulatorEvents,
         WeatherSample? weather)
     {
         AdjustAltitudeToPlan();
@@ -541,7 +571,7 @@ file sealed class SimulatedTrackState
         if (distanceMeters <= 60)
         {
             destroyedTrackIds.Add(target.Id);
-            simulatorEvents.Add(new SimulatorEvent
+            simulatorEvents.Add(new SituationEvent
             {
                 EventType = "target-destroyed",
                 TrackId = Id,

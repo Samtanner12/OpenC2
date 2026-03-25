@@ -87,3 +87,5 @@ C:/Users/samta/Desktop/openc2/OpenC2/OpenC2.Server/bin/Debug/net8.0/Microsoft.Ex
 /Users/samtanner/openc2/OpenC2/OpenC2.Server/obj/Debug/net8.0/OpenC2.Server.genruntimeconfig.cache
 /Users/samtanner/openc2/OpenC2/OpenC2.Server/obj/Debug/net8.0/ref/OpenC2.Server.dll
 /Users/samtanner/openc2/OpenC2/OpenC2.Server/obj/Debug/net8.0/swae.build.ex.cache
+/Users/samtanner/openc2/OpenC2/OpenC2.Server/bin/Debug/net8.0/OpenC2.Transport.dll
+/Users/samtanner/openc2/OpenC2/OpenC2.Server/bin/Debug/net8.0/OpenC2.Transport.pdb

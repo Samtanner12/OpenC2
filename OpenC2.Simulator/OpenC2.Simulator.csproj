@@ -11,4 +11,8 @@
     <PackageReference Include="protobuf-net" Version="3.2.30" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\OpenC2.Transport\OpenC2.Transport.csproj" />
+  </ItemGroup>
+
 </Project>
