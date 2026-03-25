@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+message TransportPeer {
+  string system_id = 1;
+  string component_id = 2;
+  string role = 3;
+  string instance_id = 4;
+  string organization = 5;
+}
+
+message NameValue {
+  string name = 1;
+  string value = 2;
+  string value_type = 3;
+}
+
+message GeoPosition {
+  double latitude = 1;
+  double longitude = 2;
+  double altitude_meters = 3;
+}
+
+message Kinematics {
+  double heading_degrees = 1;
+  double airspeed_meters_per_second = 2;
+  double ground_speed_meters_per_second = 3;
+  double vertical_speed_meters_per_second = 4;
+  double track_confidence = 5;
+}
+
+message IdentityData {
+  string callsign = 1;
+  string source = 2;
+  string vehicle_type = 3;
+  string classification = 4;
+  string affiliation = 5;
+  string status = 6;
+  string alert_level = 7;
+  string object_kind = 8;
+  string domain = 9;
+}
+
+message CommandIntent {
+  string behavior = 1;
+  optional double latitude = 2;
+  optional double longitude = 3;
+  string target_track_id = 4;
+  optional double radius_meters = 5;
+  optional double cruise_altitude_meters = 6;
+  optional double effective_range_meters = 7;
+}

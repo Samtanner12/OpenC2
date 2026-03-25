@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+message SituationEvent {
+  string event_type = 1;
+  string track_id = 2;
+  string target_track_id = 3;
+  string notes = 4;
+}

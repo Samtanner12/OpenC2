@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+import "objects.proto";
+import "events.proto";
+
+message SituationUpdate {
+  string source_system = 1;
+  string update_id = 2;
+  int64 generated_at_unix_ms = 3;
+  repeated TrackedObject tracked_objects = 4;
+  repeated DetectingObject detecting_objects = 5;
+  repeated DetectedObject detected_objects = 6;
+  repeated SituationEvent events = 7;
+  repeated Emplacement emplacements = 8;
+  repeated GroundVehicle ground_vehicles = 9;
+  repeated Unit units = 10;
+}

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+message TrackMessage {
+  string track_id = 1;
+  string callsign = 2;
+  string source = 3;
+  string vehicle_type = 4;
+  string classification = 5;
+  string affiliation = 6;
+  string status = 7;
+  string alert_level = 8;
+  double latitude = 9;
+  double longitude = 10;
+  double altitude_meters = 11;
+  double speed_meters_per_second = 12;
+  double ground_speed_meters_per_second = 13;
+  double vertical_speed_meters_per_second = 14;
+  double battery_minutes = 15;
+  double heading_degrees = 16;
+  double confidence = 17;
+  string behavior = 18;
+  optional double command_latitude = 19;
+  optional double command_longitude = 20;
+  string command_target_track_id = 21;
+  optional double command_radius_meters = 22;
+  optional double command_cruise_altitude_meters = 23;
+  optional double command_effective_range_meters = 24;
+}
+
+message TrackReclassificationCommand {
+  string track_id = 1;
+  string vehicle_type = 2;
+  string classification = 3;
+  string affiliation = 4;
+  string status = 5;
+  string alert_level = 6;
+}
+
+message SpawnTrackCommand {
+  string track_id = 1;
+  string callsign = 2;
+  string vehicle_type = 3;
+  string classification = 4;
+  string affiliation = 5;
+  string alert_level = 6;
+  string status = 7;
+  double latitude = 8;
+  double longitude = 9;
+  double altitude_meters = 10;
+  double speed_meters_per_second = 11;
+  double heading_degrees = 12;
+  string behavior = 13;
+  double battery_minutes = 14;
+  double cruise_altitude_meters = 15;
+}
+
+message DeleteTrackCommand {
+  string track_id = 1;
+}
+
+message TrackBehaviorOrderCommand {
+  string track_id = 1;
+  string behavior = 2;
+  double latitude = 3;
+  double longitude = 4;
+  string target_track_id = 5;
+  double standoff_radius_meters = 6;
+  double cruise_altitude_meters = 7;
+  double effective_range_meters = 8;
+}

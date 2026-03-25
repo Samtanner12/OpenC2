@@ -5,7 +5,17 @@ The ASP.NET backend listens for simulator traffic on TCP port `5055`.
 Each frame is encoded as:
 
 1. A 4-byte little-endian integer payload length.
-2. A protobuf payload matching [`simulator-track.proto`](./simulator-track.proto).
+2. A protobuf payload matching the umbrella schema [`simulator-track.proto`](./simulator-track.proto).
+
+The schema source is split into focused files under [`docs/proto/`](./proto/):
+
+- `common.proto`
+- `command.proto`
+- `events.proto`
+- `objects.proto`
+- `situation.proto`
+- `legacy-track.proto`
+- `envelope.proto`
 
 The backend deserializes each frame into `TrackMessage` and updates the in-memory air picture.
 

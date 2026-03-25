@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+import "common.proto";
+
+message TrackedObject {
+  string track_id = 1;
+  IdentityData identity = 2;
+  GeoPosition position = 3;
+  Kinematics kinematics = 4;
+  double battery_minutes = 5;
+  CommandIntent command = 6;
+  string behavior = 7;
+  int64 last_observed_unix_ms = 8;
+  string short_status = 9;
+  string long_status = 10;
+}
+
+message DetectingObject {
+  string detector_id = 1;
+  string name = 2;
+  string source = 3;
+  string sensor_type = 4;
+  GeoPosition position = 5;
+  Kinematics kinematics = 6;
+  string affiliation = 7;
+  double confidence = 8;
+  double coverage_radius_meters = 9;
+}
+
+message DetectedObject {
+  string detection_id = 1;
+  string detector_id = 2;
+  string related_track_id = 3;
+  GeoPosition position = 4;
+  Kinematics kinematics = 5;
+  string classification = 6;
+  string affiliation = 7;
+  double confidence = 8;
+  string raw_label = 9;
+  int64 observed_at_unix_ms = 10;
+}
+
+message Emplacement {
+  string emplacement_id = 1;
+  string name = 2;
+  string category = 3;
+  IdentityData identity = 4;
+  GeoPosition position = 5;
+  string short_status = 6;
+  string long_status = 7;
+  double coverage_radius_meters = 8;
+  int64 last_observed_unix_ms = 9;
+}
+
+message GroundVehicle {
+  string vehicle_id = 1;
+  IdentityData identity = 2;
+  GeoPosition position = 3;
+  Kinematics kinematics = 4;
+  string short_status = 5;
+  string long_status = 6;
+  int64 last_observed_unix_ms = 7;
+}
+
+message Unit {
+  string unit_id = 1;
+  IdentityData identity = 2;
+  GeoPosition position = 3;
+  Kinematics kinematics = 4;
+  string short_status = 5;
+  string long_status = 6;
+  double strength_estimate = 7;
+  int64 last_observed_unix_ms = 8;
+}

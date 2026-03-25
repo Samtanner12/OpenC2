@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+import "common.proto";
+import "command.proto";
+import "events.proto";
+import "legacy-track.proto";
+import "situation.proto";
+
+message TransportEnvelope {
+  TrackMessage track = 1;
+  TrackReclassificationCommand reclassification = 2;
+  SpawnTrackCommand spawn_track = 3;
+  DeleteTrackCommand delete_track = 4;
+  TrackBehaviorOrderCommand behavior_order = 5;
+  SituationEvent event = 6;
+  SituationUpdate situation_update = 7;
+  string envelope_id = 8;
+  int64 created_at_unix_ms = 9;
+  TransportPeer source = 10;
+  TransportPeer destination = 11;
+  string profile = 12;
+  CommandMessage command_message = 13;
+  ResponseMessage response_message = 14;
+  EventMessage event_message = 15;
+  CapabilityAdvertisement capability_advertisement = 16;
+}

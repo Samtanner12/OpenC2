@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+import "common.proto";
+
+message CommandMessage {
+  string command_id = 1;
+  string correlation_id = 2;
+  string action = 3;
+  string target_type = 4;
+  string actuator_profile = 5;
+  repeated NameValue target_specifiers = 6;
+  repeated NameValue arguments = 7;
+  repeated string requested_response_types = 8;
+  string description = 9;
+}
+
+message ResponseMessage {
+  string response_id = 1;
+  string request_id = 2;
+  int32 status_code = 3;
+  string status_text = 4;
+  string status_detail = 5;
+  repeated NameValue results = 6;
+}
+
+message EventMessage {
+  string event_id = 1;
+  string correlation_id = 2;
+  string event_type = 3;
+  string severity = 4;
+  int64 occurred_at_unix_ms = 5;
+  string summary = 6;
+  string detail = 7;
+  repeated NameValue attributes = 8;
+}
+
+message CapabilityAdvertisement {
+  string advertisement_id = 1;
+  string subject_id = 2;
+  string subject_role = 3;
+  repeated string actuator_profiles = 4;
+  repeated string supported_actions = 5;
+  repeated string supported_target_types = 6;
+  repeated string transfer_bindings = 7;
+  repeated string serializations = 8;
+  repeated NameValue additional_capabilities = 9;
+}
