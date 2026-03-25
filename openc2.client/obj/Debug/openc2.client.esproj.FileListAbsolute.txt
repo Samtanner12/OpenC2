@@ -1,0 +1,2 @@
+C:/Users/samta/Desktop/openc2/OpenC2/openc2.client/obj/Debug/openc2.client.esproj.CoreCompileInputs.cache
+/Users/samtanner/openc2/OpenC2/openc2.client/obj/Debug/openc2.client.esproj.CoreCompileInputs.cache

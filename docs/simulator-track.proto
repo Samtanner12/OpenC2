@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package openc2.transport;
+
+message SimulatorFrame {
+  TrackMessage track = 1;
+  TrackReclassificationCommand reclassification = 2;
+}
+
+message TrackMessage {
+  string trackId = 1;
+  string callsign = 2;
+  string source = 3;
+  string vehicleType = 4;
+  string classification = 5;
+  string affiliation = 6;
+  string status = 7;
+  string alertLevel = 8;
+  double latitude = 9;
+  double longitude = 10;
+  double altitudeMeters = 11;
+  double speedMetersPerSecond = 12;
+  double headingDegrees = 13;
+  double confidence = 14;
+}
+
+message TrackReclassificationCommand {
+  string trackId = 1;
+  string classification = 2;
+  string affiliation = 3;
+  string status = 4;
+  string alertLevel = 5;
+}

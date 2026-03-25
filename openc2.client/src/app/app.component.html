@@ -1,0 +1,787 @@
+<main class="mission-shell">
+  <aside class="tool-rail">
+    <div class="tool-rail__brand">OC2</div>
+    <button class="tool-rail__button tool-rail__button--active" type="button">OP</button>
+    <button class="tool-rail__button" type="button">TK</button>
+    <button class="tool-rail__button" type="button">RF</button>
+    <button class="tool-rail__button" type="button">IO</button>
+    <button class="tool-rail__button" type="button">LG</button>
+    <button class="tool-rail__button" type="button">CM</button>
+  </aside>
+
+  <section class="mission-main">
+    <header class="mission-header">
+      <div class="mission-header__left">
+        <div class="search-shell">
+          <span>Search workspace</span>
+          <kbd>Ctrl Space</kbd>
+        </div>
+        <div class="mission-chip mission-chip--primary">{{ title }}</div>
+        <div class="mission-chip">Airspace Defense Cell</div>
+      </div>
+
+      <div class="mission-header__right">
+        <button type="button" class="mission-chip mission-chip--button" (click)="toggleLeftPanel()">
+          {{ leftPanelHidden ? 'Open Queue' : 'Collapse Queue' }}
+        </button>
+        <button type="button" class="mission-chip mission-chip--button" (click)="toggleRightPanel()">
+          {{ rightPanelHidden ? 'Open Desk' : 'Collapse Desk' }}
+        </button>
+        <div class="top-metric">
+          <span>High Priority</span>
+          <strong>{{ highPriorityCount }}</strong>
+        </div>
+        <div class="top-metric">
+          <span>Elevated</span>
+          <strong>{{ elevatedCount }}</strong>
+        </div>
+        <div class="top-metric top-metric--wide">
+          <span>Transport</span>
+          <strong>{{ transportSummary }}</strong>
+        </div>
+      </div>
+    </header>
+
+    <section class="mission-grid">
+      <section class="panel panel--globe">
+          <div class="panel__titlebar panel__titlebar--globe">
+          <div>
+            <p class="panel__eyebrow">Common Operating Picture</p>
+            <h2>Mission Globe</h2>
+          </div>
+
+          <div class="globe-badges">
+            <span class="badge" data-tone="neutral">{{ renderModeLabel }}</span>
+            <button type="button" class="badge badge--button" [attr.data-tone]="targetLock ? 'low' : 'neutral'" (click)="toggleTargetLock()">
+              {{ targetLock ? 'Target Lock On' : 'Target Lock Off' }}
+            </button>
+            <button type="button" class="badge badge--button" [attr.data-tone]="geofencePlacementArmed ? 'elevated' : 'neutral'" (click)="toggleGeofencePlacement()">
+              {{ geofencePlacementArmed ? 'Zone Placement Armed' : 'Place Geofence' }}
+            </button>
+            <div class="camera-controls" *ngIf="geofencePlacementArmed">
+              <button type="button" class="badge badge--button" data-tone="elevated" (click)="adjustGeofenceRadius(-100)">
+                Radius -
+              </button>
+              <span class="badge" data-tone="elevated">Radius {{ geofenceRadiusMeters }} m</span>
+              <button type="button" class="badge badge--button" data-tone="elevated" (click)="adjustGeofenceRadius(100)">
+                Radius +
+              </button>
+            </div>
+            <div class="camera-controls">
+              <button type="button" class="badge badge--button" data-tone="neutral" (click)="adjustTilt(-5)">
+                Tilt -
+              </button>
+              <span class="badge" data-tone="neutral">Tilt {{ cameraTiltDegrees }}deg</span>
+              <button type="button" class="badge badge--button" data-tone="neutral" (click)="adjustTilt(5)">
+                Tilt +
+              </button>
+              <button type="button" class="badge badge--button" data-tone="neutral" (click)="adjustRotate(-5)">
+                Rotate -
+              </button>
+              <span class="badge" data-tone="neutral">Rotate {{ cameraHeadingDegrees }}deg</span>
+              <button type="button" class="badge badge--button" data-tone="neutral" (click)="adjustRotate(5)">
+                Rotate +
+              </button>
+              <button type="button" class="badge badge--button" data-tone="neutral" (click)="resetView()">
+                Reset View
+              </button>
+            </div>
+            <span class="badge" data-tone="neutral">{{ imageryLabel }}</span>
+            <span class="badge" data-tone="neutral">{{ terrainLabel }}</span>
+            <span class="badge" data-tone="neutral">{{ snapshot?.protectedSites?.length ?? 0 }} sites</span>
+            <span class="badge" [attr.data-tone]="signalrOnline ? 'low' : 'elevated'">{{ signalrOnline ? 'Live' : 'Fallback' }}</span>
+          </div>
+        </div>
+
+        <div class="globe-stage" (mousemove)="handleStageMouseMove($event)" (mouseup)="endFallbackDrag()" (mouseleave)="endFallbackDrag(); handleTrackPlacementDragLeave($any($event))" (dragover)="handleTrackPlacementDragOver($event)" (drop)="handleTrackPlacementDrop($event)" (dragleave)="handleTrackPlacementDragLeave($event)">
+          <div id="globe" class="globe-frame" [class.is-hidden]="globeMode !== '3d'"></div>
+
+          <div class="fallback-stage" *ngIf="globeMode === 'fallback'" #fallbackViewport (wheel)="zoomFallback($event)" (mousedown)="startFallbackDrag($event)" (click)="onFallbackMapClick($event)">
+            <div
+              class="fallback-stage__content"
+              [style.transform]="'translate(' + fallbackOffsetX + 'px,' + fallbackOffsetY + 'px) scale(' + fallbackScale + ')'">
+              <div class="fallback-stage__grid"></div>
+              <svg class="fallback-trails" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polyline
+                  *ngFor="let trail of fallbackTrailPaths"
+                  [attr.points]="trail.points"
+                  [attr.data-tone]="trail.tone"
+                  class="fallback-trail">
+                </polyline>
+              </svg>
+
+              <button
+                *ngFor="let site of fallbackSites"
+                class="fallback-site"
+                type="button"
+                [style.left.%]="site.x"
+                [style.top.%]="site.y"
+                [style.width.rem]="site.radius"
+                [style.height.rem]="site.radius"
+                [class.is-selected]="site.id === selectedSiteId"
+                (click)="$event.stopPropagation(); focusSite(site.id)">
+                <label>{{ site.name }}</label>
+              </button>
+
+              <button
+                *ngFor="let track of fallbackTracks"
+                type="button"
+                class="fallback-contact"
+                [class.is-selected]="track.id === selectedTrackId"
+                [attr.data-tone]="statusTone(track)"
+                [style.left.%]="track.x"
+                [style.top.%]="track.y"
+                (click)="$event.stopPropagation(); focusTrack(track.id)">
+                <span></span>
+                <label>{{ track.callsign }}</label>
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="track-placement-preview"
+            *ngIf="trackPlacementActive && globeMode === 'fallback' && trackPlacementPreviewScreen"
+            [style.left.px]="trackPlacementPreviewScreen.x"
+            [style.top.px]="trackPlacementPreviewScreen.y">
+            <strong>{{ simulatorTrackDraft.callsign || 'NEW-01' }}</strong>
+            <span>{{ simulatorTrackDraft.vehicleType }} | drop to spawn</span>
+          </div>
+
+          <div
+            class="track-placement-preview"
+            *ngIf="behaviorPlacementMode && globeMode === 'fallback' && behaviorPlacementPreviewScreen"
+            [style.left.px]="behaviorPlacementPreviewScreen.x"
+            [style.top.px]="behaviorPlacementPreviewScreen.y">
+            <strong>{{ behaviorPlacementMode }}</strong>
+            <span>click map to confirm</span>
+          </div>
+
+          <div class="globe-hud globe-hud--top-left" *ngIf="selectedTrack as track">
+            <span class="panel__eyebrow">Focused Contact</span>
+            <strong>{{ track.callsign }}</strong>
+            <p>{{ track.classification }} | {{ track.affiliation }} | {{ track.status }}</p>
+            <p *ngIf="weatherVisible && weatherSnapshot">
+              {{ weatherSnapshot.currentTemperatureC | number:'1.0-0' }} C |
+              surface wind {{ weatherSnapshot.currentWindSpeedMs | number:'1.0-1' }} m/s |
+              altitude wind {{ weatherSnapshot.altitudeWindSpeedMs | number:'1.0-1' }} m/s {{ formatWindDirection(weatherSnapshot.altitudeWindDirectionDegrees) }} |
+              clouds {{ weatherSnapshot.altitudeCloudCoverPercent | number:'1.0-0' }}%
+            </p>
+            <p *ngIf="weatherVisible && weatherSnapshot">
+              WX overlay active: cyan wind vector shows the sampled altitude layer around the selected track.
+            </p>
+            <p *ngIf="weatherVisible && weatherSnapshot">
+              Layer {{ weatherSnapshot.altitudeLayerMeters | number:'1.0-0' }} m |
+              low {{ weatherSnapshot.lowCloudCoverPercent | number:'1.0-0' }}% |
+              mid {{ weatherSnapshot.midCloudCoverPercent | number:'1.0-0' }}% |
+              high {{ weatherSnapshot.highCloudCoverPercent | number:'1.0-0' }}%
+            </p>
+          </div>
+
+          <div class="globe-hud globe-hud--top-right" *ngIf="showMissionHud">
+            <button type="button" class="globe-hud__close" (click)="closeMissionHud()">X</button>
+            <span class="panel__eyebrow">Mission Controls</span>
+            <strong>{{ leftPanelHidden ? 'Queue Hidden' : 'Queue Open' }} | {{ rightPanelHidden ? 'Desk Hidden' : 'Desk Open' }}</strong>
+            <p>Use the collapsible drawers to focus on the globe without losing workflow access.</p>
+          </div>
+
+          <div class="globe-hud globe-hud--bottom-right" *ngIf="showTipHud">
+            <button type="button" class="globe-hud__close" (click)="closeTipHud()">X</button>
+            <span class="panel__eyebrow">Operator Tip</span>
+            <strong>Click a contact or arm zone placement</strong>
+            <p>In fallback mode, drag to pan, wheel to zoom, and click the map to place a new geofence.</p>
+          </div>
+
+          <aside class="overlay-drawer overlay-drawer--left" [class.overlay-drawer--collapsed]="leftPanelHidden">
+            <button type="button" class="overlay-drawer__toggle overlay-drawer__toggle--left" (click)="toggleLeftPanel()">{{ leftPanelHidden ? '>' : '<' }}</button>
+            <div class="overlay-drawer__body">
+              <div class="panel__titlebar panel__titlebar--drawer">
+                <div>
+                  <p class="panel__eyebrow">Tasking</p>
+                  <h2>Operations Queue</h2>
+                </div>
+              </div>
+
+              <div class="workspace-tabs">
+                <button type="button" [class.is-active]="workspaceTab === 'contacts'" (click)="selectWorkspaceTab('contacts')">Contacts</button>
+                <button type="button" [class.is-active]="workspaceTab === 'sites'" (click)="selectWorkspaceTab('sites')">Sites</button>
+                <button type="button" [class.is-active]="workspaceTab === 'transport'" (click)="selectWorkspaceTab('transport')">Transport</button>
+              </div>
+
+              <div class="workspace-body" *ngIf="workspaceTab === 'contacts'">
+                <div class="queue-header">
+                  <span>Active contacts</span>
+                  <div class="queue-header__actions">
+                    <strong>{{ snapshot?.tracks?.length ?? 0 }}</strong>
+                    <button type="button" class="mission-chip mission-chip--button" [disabled]="!canCreateSimulatorTracks" (click)="openTrackCreator()">
+                      Add Contact
+                    </button>
+                  </div>
+                </div>
+
+                <div class="contact-list" *ngIf="snapshot?.tracks?.length; else emptyContacts">
+                  <button
+                    *ngFor="let track of snapshot?.tracks"
+                    type="button"
+                    [class]="trackCardClass(track)"
+                    (click)="focusTrack(track.id)">
+                    <div class="contact-row__top">
+                      <strong>{{ track.callsign }}</strong>
+                      <span class="badge" [attr.data-tone]="statusTone(track)">{{ track.alertLevel }}</span>
+                    </div>
+                    <p>{{ contactRibbon(track) }}</p>
+                    <div class="contact-row__meta">
+                      <span>{{ track.altitudeMeters | number:'1.0-0' }} m</span>
+                      <span>{{ getTrackGroundSpeed(track) | number:'1.0-1' }} gs</span>
+                      <span>{{ formatAge(track.lastUpdateUtc) }}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="workspace-body" *ngIf="workspaceTab === 'sites'">
+                <div class="stack-list">
+                  <button type="button" class="stack-card" *ngFor="let site of snapshot?.protectedSites" (click)="focusSite(site.id)">
+                    <span>{{ site.posture }}</span>
+                    <strong>{{ site.name }}</strong>
+                    <p>{{ site.radiusMeters | number:'1.0-0' }} m protective radius</p>
+                  </button>
+                </div>
+              </div>
+
+              <div class="workspace-body" *ngIf="workspaceTab === 'transport'">
+                <div class="stack-list">
+                  <article class="stack-card">
+                    <span>Listener</span>
+                    <strong>{{ snapshot?.transportStatus?.listenerOnline ? 'Online' : 'Offline' }}</strong>
+                    <p>TCP port {{ snapshot?.transportStatus?.tcpPort }}</p>
+                  </article>
+                  <article class="stack-card">
+                    <span>Clients</span>
+                    <strong>{{ snapshot?.transportStatus?.connectedClients ?? 0 }}</strong>
+                    <p>Simulator connections</p>
+                  </article>
+                  <article class="stack-card">
+                    <span>SignalR</span>
+                    <strong>{{ signalrOnline ? 'Streaming' : 'Degraded' }}</strong>
+                    <p>Hub snapshot fanout state</p>
+                  </article>
+                </div>
+              </div>
+
+              <ng-template #emptyContacts>
+                <div class="empty-state">
+                  <strong>{{ loading ? 'Loading operational picture' : 'No contacts available' }}</strong>
+                  <p>Run the server and simulator sender to populate the queue.</p>
+                </div>
+              </ng-template>
+            </div>
+          </aside>
+
+          <aside class="overlay-drawer overlay-drawer--right" [class.overlay-drawer--collapsed]="rightPanelHidden">
+            <button type="button" class="overlay-drawer__toggle overlay-drawer__toggle--right" (click)="toggleRightPanel()">{{ rightPanelHidden ? '<' : '>' }}</button>
+            <div class="overlay-drawer__body">
+              <div class="panel__titlebar panel__titlebar--drawer">
+                <div>
+                  <p class="panel__eyebrow">Command Desk</p>
+                  <h2>{{ selectedTrack?.callsign || selectedSite?.name || 'No Selection' }}</h2>
+                </div>
+                <span class="badge" [attr.data-tone]="selectedTrack ? statusTone(selectedTrack) : 'neutral'">{{ selectedTrack?.alertLevel || selectedSite?.posture || 'Idle' }}</span>
+              </div>
+
+              <div class="detail-hero" *ngIf="selectedTrack as track; else siteOrEmpty">
+                <div class="detail-hero__stats">
+                  <article>
+                    <span>Altitude</span>
+                    <strong>{{ track.altitudeMeters | number:'1.0-0' }} m</strong>
+                  </article>
+                  <article>
+                    <span>Heading</span>
+                    <strong>{{ track.headingDegrees | number:'1.0-0' }} deg</strong>
+                  </article>
+                  <article>
+                    <span>Ground Speed</span>
+                    <strong>{{ getTrackGroundSpeed(track) | number:'1.0-1' }} m/s</strong>
+                  </article>
+                  <article>
+                    <span>Climb Rate</span>
+                    <strong>{{ getTrackVerticalSpeed(track) | number:'1.0-1' }} m/s</strong>
+                  </article>
+                  <article>
+                    <span>Max Speed</span>
+                    <strong>{{ track.speedMetersPerSecond | number:'1.0-1' }} m/s</strong>
+                  </article>
+                  <article>
+                    <span>Battery</span>
+                    <strong>{{ (track.batteryMinutes ?? 0) | number:'1.0-0' }} min</strong>
+                  </article>
+                  <article>
+                    <span>Confidence</span>
+                    <strong>{{ track.confidence | percent:'1.0-0' }}</strong>
+                  </article>
+                  <article>
+                    <span>Behavior</span>
+                    <strong>{{ track.behavior || 'Unknown' }}</strong>
+                  </article>
+                  <article>
+                    <span>Source</span>
+                    <strong>{{ track.source }}</strong>
+                  </article>
+                  <article *ngIf="track.commandCruiseAltitudeMeters">
+                    <span>Planned Altitude</span>
+                    <strong>{{ track.commandCruiseAltitudeMeters | number:'1.0-0' }} m</strong>
+                  </article>
+                  <article *ngIf="track.commandEffectiveRangeMeters">
+                    <span>Projected Range</span>
+                    <strong>{{ track.commandEffectiveRangeMeters | number:'1.0-0' }} m</strong>
+                  </article>
+                </div>
+
+                <div class="quick-actions">
+                  <button
+                    *ngFor="let preset of quickActionPresets"
+                    type="button"
+                    [class.is-selected]="selectedCommandId === preset.commandId"
+                    (click)="useQuickAction(preset.commandId)">
+                    {{ preset.label }}
+                  </button>
+                </div>
+
+                <div class="right-tabs">
+                  <button type="button" [class.is-active]="rightPaneTab === 'actions'" (click)="selectRightPaneTab('actions')">Actions</button>
+                  <button type="button" [class.is-active]="rightPaneTab === 'details'" (click)="selectRightPaneTab('details')">Details</button>
+                  <button type="button" [class.is-active]="rightPaneTab === 'activity'" (click)="selectRightPaneTab('activity')">Activity</button>
+                </div>
+
+                <div class="right-pane" *ngIf="rightPaneTab === 'actions'">
+                  <label class="form-field">
+                    <span>Workflow Action</span>
+                    <select [(ngModel)]="selectedCommandId">
+                      <option *ngFor="let command of selectedTrackCommands" [value]="command.id">
+                        {{ command.label }} | {{ command.category }}
+                      </option>
+                    </select>
+                  </label>
+
+                  <div class="command-brief" *ngIf="selectedCommand">
+                    <span>{{ selectedCommand.category }}</span>
+                    <strong>{{ selectedCommand.label }}</strong>
+                    <p>{{ selectedCommand.intent }}</p>
+                  </div>
+
+                  <label class="form-field">
+                    <span>Operator</span>
+                    <input [(ngModel)]="operatorName" placeholder="Control Alpha" />
+                  </label>
+
+                  <label class="form-field">
+                    <span>Operator note</span>
+                    <textarea [(ngModel)]="actionNotes" rows="4" placeholder="State purpose, conditions, or follow-on coordination"></textarea>
+                  </label>
+
+                  <button type="button" class="primary-action" (click)="submitAction()">Commit Workflow Action</button>
+
+                  <div class="command-brief command-brief--secondary">
+                    <span>Track State</span>
+                    <strong>Reclassify Contact</strong>
+                    <p>Apply MIL-STD aligned identity values and push them back to the simulator feed.</p>
+                  </div>
+
+                  <div class="split-fields">
+                    <label class="form-field">
+                      <span>Type</span>
+                      <select [(ngModel)]="reclassifyVehicleType">
+                        <option *ngFor="let option of vehicleTypeOptions" [value]="option">{{ option }}</option>
+                      </select>
+                    </label>
+                    <label class="form-field">
+                      <span>Classification</span>
+                      <select [(ngModel)]="reclassifyClassification">
+                        <option *ngFor="let option of classificationOptions" [value]="option">{{ option }}</option>
+                      </select>
+                    </label>
+                    <label class="form-field">
+                      <span>Affiliation</span>
+                      <select [(ngModel)]="reclassifyAffiliation">
+                        <option *ngFor="let option of affiliationOptions" [value]="option">{{ option }}</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="split-fields">
+                    <label class="form-field">
+                      <span>Alert Level</span>
+                      <select [(ngModel)]="reclassifyAlertLevel">
+                        <option *ngFor="let option of alertLevelOptions" [value]="option">{{ option }}</option>
+                      </select>
+                    </label>
+                    <label class="form-field">
+                      <span>Status</span>
+                      <select [(ngModel)]="reclassifyStatus">
+                        <option *ngFor="let option of statusOptions" [value]="option">{{ option }}</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <button type="button" class="secondary-action" (click)="submitReclassification()">Apply Reclassification</button>
+                  <button type="button" class="secondary-action" *ngIf="track.source === 'simulator'" (click)="deleteSelectedTrack()">Delete Track From Simulator</button>
+
+                  <div class="command-brief command-brief--secondary" *ngIf="track.source === 'simulator'">
+                    <span>Behavior Control</span>
+                    <strong>Issue Simulator Orders</strong>
+                    <p>Send persistent behavior orders to the selected simulator track.</p>
+                  </div>
+
+                  <div class="split-fields" *ngIf="track.source === 'simulator'">
+                    <label class="form-field">
+                      <span>Track To Surveil / Engage</span>
+                      <select [(ngModel)]="behaviorTargetTrackId">
+                        <option value="">Select Track</option>
+                        <option *ngFor="let option of behaviorTargetOptions" [value]="option.id">{{ option.callsign }}</option>
+                      </select>
+                    </label>
+                    <label class="form-field">
+                      <span>Standoff Radius Meters</span>
+                      <input [(ngModel)]="behaviorRadiusMeters" type="number" min="30" max="2000" />
+                    </label>
+                  </div>
+
+                  <div class="split-fields" *ngIf="track.source === 'simulator'">
+                    <label class="form-field">
+                      <span>Move Altitude Meters</span>
+                      <input [(ngModel)]="behaviorCruiseAltitudeMeters" type="number" min="30" max="4000" />
+                    </label>
+                  </div>
+
+                  <div class="split-fields" *ngIf="track.source === 'simulator'">
+                    <button
+                      type="button"
+                      class="secondary-action"
+                      draggable="true"
+                      (dragstart)="beginBehaviorPlacement('Move To Position', $event)">
+                      Drag Move Order To Map
+                    </button>
+                    <button
+                      type="button"
+                      class="secondary-action"
+                      draggable="true"
+                      (dragstart)="beginBehaviorPlacement('Surveil Location', $event)">
+                      Drag Surveil Area To Map
+                    </button>
+                  </div>
+
+                  <div class="split-fields" *ngIf="track.source === 'simulator'">
+                    <button type="button" class="secondary-action" (click)="orderSelectedTrackBehavior('Guard')">Guard Position</button>
+                    <button type="button" class="secondary-action" (click)="orderSelectedTrackBehavior('Random')">Random Patrol</button>
+                  </div>
+
+                  <div class="split-fields" *ngIf="track.source === 'simulator'">
+                    <button type="button" class="secondary-action" [disabled]="!behaviorTargetTrackId" (click)="orderSelectedTrackBehavior('Surveil Track')">Surveil Track</button>
+                    <button type="button" class="secondary-action" [disabled]="!behaviorTargetTrackId" (click)="orderSelectedTrackBehavior('Engage Track')">Engage Target</button>
+                  </div>
+                  <button type="button" class="secondary-action" *ngIf="behaviorPlacementMode" (click)="endBehaviorPlacement()">Cancel Behavior Placement</button>
+
+                  <div class="command-brief command-brief--secondary">
+                    <span>Area Control</span>
+                    <strong>Create Geofence</strong>
+                    <p>Generate a monitoring zone around the selected track or arm direct map placement.</p>
+                  </div>
+
+                  <div class="split-fields">
+                    <label class="form-field">
+                      <span>Zone Name</span>
+                      <input [(ngModel)]="geofenceName" />
+                    </label>
+                    <label class="form-field">
+                      <span>Radius Meters</span>
+                      <input [(ngModel)]="geofenceRadiusMeters" (ngModelChange)="onGeofenceRadiusChanged()" type="number" min="100" max="25000" />
+                    </label>
+                  </div>
+
+                  <div class="split-fields">
+                    <button type="button" class="secondary-action" (click)="createGeofence()">Create Around Track</button>
+                    <button type="button" class="secondary-action" (click)="toggleGeofencePlacement()">
+                      {{ geofencePlacementArmed ? 'Cancel Placement' : 'Place On Map' }}
+                    </button>
+                  </div>
+                </div>
+
+                <div class="right-pane" *ngIf="rightPaneTab === 'details'">
+                  <div class="stack-list">
+                    <article class="stack-card">
+                      <span>Identity</span>
+                      <strong>{{ track.classification }}</strong>
+                      <p>{{ track.affiliation }}</p>
+                    </article>
+                    <article class="stack-card">
+                      <span>Sensor Source</span>
+                      <strong>{{ track.source }}</strong>
+                      <p>{{ track.status }}</p>
+                    </article>
+                    <article class="stack-card">
+                      <span>Position</span>
+                      <strong>{{ track.latitude | number:'1.4-4' }}, {{ track.longitude | number:'1.4-4' }}</strong>
+                      <p>Updated {{ formatAge(track.lastUpdateUtc) }}</p>
+                    </article>
+                  </div>
+                </div>
+
+                <div class="right-pane" *ngIf="rightPaneTab === 'activity'">
+                  <div class="stack-list" *ngIf="selectedTrackActivity.length; else noActivity">
+                    <article class="stack-card" *ngFor="let entry of selectedTrackActivity">
+                      <span>{{ formatTimestamp(entry.timestampUtc) }}</span>
+                      <strong>{{ entry.commandLabel }}</strong>
+                      <p>{{ entry.notes || 'No annotation provided.' }}</p>
+                    </article>
+                  </div>
+                </div>
+              </div>
+
+              <ng-template #siteOrEmpty>
+                <div class="detail-hero" *ngIf="selectedSite as site; else noTrack">
+                  <div class="detail-hero__stats">
+                    <article>
+                      <span>Radius</span>
+                      <strong>{{ site.radiusMeters | number:'1.0-0' }} m</strong>
+                    </article>
+                    <article>
+                      <span>Posture</span>
+                      <strong>{{ site.posture }}</strong>
+                    </article>
+                    <article>
+                      <span>Latitude</span>
+                      <strong>{{ site.latitude | number:'1.4-4' }}</strong>
+                    </article>
+                    <article>
+                      <span>Longitude</span>
+                      <strong>{{ site.longitude | number:'1.4-4' }}</strong>
+                    </article>
+                  </div>
+
+                  <div class="right-tabs">
+                    <button type="button" [class.is-active]="rightPaneTab === 'details'" (click)="selectRightPaneTab('details')">Details</button>
+                    <button type="button" [class.is-active]="rightPaneTab === 'activity'" (click)="selectRightPaneTab('activity')">Activity</button>
+                  </div>
+
+                  <div class="right-pane" *ngIf="rightPaneTab === 'details'">
+                    <div class="command-brief command-brief--secondary">
+                      <span>Geofence Control</span>
+                      <strong>Edit Site Parameters</strong>
+                      <p>Adjust the selected geofence directly from the side panel and keep the radius control here.</p>
+                    </div>
+
+                    <div class="split-fields">
+                      <label class="form-field">
+                        <span>Zone Name</span>
+                        <input [(ngModel)]="editSiteName" />
+                      </label>
+                      <label class="form-field">
+                        <span>Radius Meters</span>
+                        <input [(ngModel)]="editSiteRadiusMeters" type="number" min="100" max="25000" />
+                      </label>
+                    </div>
+
+                    <label class="form-field">
+                      <span>Posture</span>
+                      <select [(ngModel)]="editSitePosture">
+                        <option *ngFor="let option of sitePostureOptions" [value]="option">{{ option }}</option>
+                      </select>
+                    </label>
+
+                    <button type="button" class="secondary-action" (click)="submitSiteUpdate()">Update Geofence</button>
+                  </div>
+
+                  <div class="right-pane" *ngIf="rightPaneTab === 'activity'">
+                    <div class="stack-list" *ngIf="selectedSiteActivity.length; else noSiteActivity">
+                      <article class="stack-card" *ngFor="let entry of selectedSiteActivity">
+                        <span>{{ formatTimestamp(entry.timestampUtc) }}</span>
+                        <strong>{{ entry.commandLabel }}</strong>
+                        <p>{{ entry.notes || 'No annotation provided.' }}</p>
+                      </article>
+                    </div>
+                  </div>
+                </div>
+              </ng-template>
+
+              <ng-template #noTrack>
+                <div class="empty-state">
+                  <strong>No object selected</strong>
+                  <p>Select a track or geofence from the globe or queue to unlock actions.</p>
+                </div>
+              </ng-template>
+
+              <ng-template #noActivity>
+                <div class="empty-state empty-state--compact">
+                  <strong>No activity on this contact yet</strong>
+                  <p>Issue an operator action to begin a workflow record.</p>
+                </div>
+              </ng-template>
+
+              <ng-template #noSiteActivity>
+                <div class="empty-state empty-state--compact">
+                  <strong>No activity on this geofence yet</strong>
+                  <p>Update the geofence to add a workflow record.</p>
+                </div>
+              </ng-template>
+            </div>
+          </aside>
+
+          <div class="globe-overlay" *ngIf="!globeReady && !dismissGlobeOverlay">
+            <button type="button" class="globe-overlay__close" (click)="closeGlobeOverlay()">X</button>
+            <strong>{{ globeError || 'Initializing Cesium workspace' }}</strong>
+            <p *ngIf="globeMode === '3d'">The operational globe will appear once the Cesium runtime is ready.</p>
+            <p *ngIf="globeMode === 'fallback'">WebGL failed, so the console switched to a 2D tactical fallback. Contacts and actions still work.</p>
+          </div>
+
+          <button
+            *ngIf="globeMode === '3d'"
+            type="button"
+            class="fallback-prompt"
+            (click)="dismiss3dAndStayInFallback()">
+            Switch To Tactical Map
+          </button>
+
+          <div class="dialog-scrim" *ngIf="showTrackCreator">
+            <div class="track-creator">
+              <div class="panel__titlebar panel__titlebar--drawer">
+                <div>
+                  <p class="panel__eyebrow">Simulator Insert</p>
+                  <h2>New Contact</h2>
+                </div>
+                <button type="button" class="globe-hud__close" (click)="closeTrackCreator()">X</button>
+              </div>
+
+              <div class="workspace-body">
+                <div class="command-brief">
+                  <span>Placement Flow</span>
+                  <strong>Configure, then drag onto the map</strong>
+                  <p>Drop the contact where you want it to spawn. The simulator will own it after insertion and keep it moving.</p>
+                </div>
+
+                <div class="split-fields">
+                  <label class="form-field">
+                    <span>Callsign</span>
+                    <input [(ngModel)]="simulatorTrackDraft.callsign" />
+                  </label>
+                  <label class="form-field">
+                    <span>Type</span>
+                    <select [(ngModel)]="simulatorTrackDraft.vehicleType">
+                      <option *ngFor="let option of vehicleTypeOptions" [value]="option">{{ option }}</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="split-fields">
+                  <label class="form-field">
+                    <span>Classification</span>
+                    <select [(ngModel)]="simulatorTrackDraft.classification">
+                      <option *ngFor="let option of classificationOptions" [value]="option">{{ option }}</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Affiliation</span>
+                    <select [(ngModel)]="simulatorTrackDraft.affiliation">
+                      <option *ngFor="let option of affiliationOptions" [value]="option">{{ option }}</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="split-fields">
+                  <label class="form-field">
+                    <span>Alert Level</span>
+                    <select [(ngModel)]="simulatorTrackDraft.alertLevel">
+                      <option *ngFor="let option of alertLevelOptions" [value]="option">{{ option }}</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Status</span>
+                    <select [(ngModel)]="simulatorTrackDraft.status">
+                      <option *ngFor="let option of statusOptions" [value]="option">{{ option }}</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="split-fields">
+                  <label class="form-field">
+                    <span>Altitude Meters</span>
+                    <input [(ngModel)]="simulatorTrackDraft.altitudeMeters" type="number" min="40" max="4000" />
+                  </label>
+                  <label class="form-field">
+                    <span>Max Speed M/S</span>
+                    <input [(ngModel)]="simulatorTrackDraft.speedMetersPerSecond" type="number" min="1" max="80" />
+                  </label>
+                </div>
+
+                <div class="split-fields">
+                  <label class="form-field">
+                    <span>Battery Minutes</span>
+                    <input [(ngModel)]="simulatorTrackDraft.batteryMinutes" type="number" min="5" max="300" />
+                  </label>
+                  <label class="form-field">
+                    <span>Heading Degrees</span>
+                    <input [(ngModel)]="simulatorTrackDraft.headingDegrees" type="number" min="0" max="359" />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  class="primary-action"
+                  draggable="true"
+                  [disabled]="creatingSimulatorTrack"
+                  (dragstart)="beginSimulatorTrackDrag($event)">
+                  Drag Contact To Arm Placement
+                </button>
+                <button type="button" class="secondary-action" *ngIf="trackPlacementActive" (click)="endSimulatorTrackDrag()">Cancel Placement</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dialog-scrim" *ngIf="pendingBehaviorOrder">
+            <div class="track-creator track-creator--compact">
+              <div class="panel__titlebar panel__titlebar--drawer">
+                <div>
+                  <p class="panel__eyebrow">Range Warning</p>
+                  <h2>Move May Exceed Reach</h2>
+                </div>
+                <button type="button" class="globe-hud__close" (click)="cancelPendingBehaviorOrder()">X</button>
+              </div>
+
+              <div class="workspace-body">
+                <div class="command-brief">
+                  <span>Operator Confirmation</span>
+                  <strong>Projected reach may be insufficient</strong>
+                  <p>
+                    Projected reach is about {{ pendingBehaviorOrder.projectedRangeMeters | number:'1.0-0' }} m,
+                    while the requested destination is {{ pendingBehaviorOrder.destinationDistanceMeters | number:'1.0-0' }} m away.
+                  </p>
+                </div>
+
+                <div class="split-fields">
+                  <button type="button" class="secondary-action" (click)="cancelPendingBehaviorOrder()">Cancel Order</button>
+                  <button type="button" class="primary-action" (click)="confirmPendingBehaviorOrder()">Send Anyway</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-shell">
+          <div class="timeline-shell__header">
+            <div>
+              <span class="panel__eyebrow">Timeline</span>
+              <strong>Recent actions and contact tempo</strong>
+            </div>
+            <span>{{ formatTimestamp(snapshot?.generatedAtUtc) }}</span>
+          </div>
+
+          <div class="timeline">
+            <article class="timeline-event" *ngFor="let entry of snapshot?.actionLog">
+              <span>{{ formatTimestamp(entry.timestampUtc) }}</span>
+              <strong>{{ entry.commandLabel }}</strong>
+              <p>{{ entry.trackId }} | {{ entry.operator }}</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </section>
+  </section>
+</main>

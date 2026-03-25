@@ -1,0 +1,41 @@
+:root {
+  color-scheme: dark;
+  --bg: #040b14;
+  --bg-panel: rgba(10, 28, 47, 0.82);
+  --line: rgba(120, 183, 255, 0.18);
+  --line-strong: rgba(120, 183, 255, 0.38);
+  --text: #eef5ff;
+  --muted: #8aa6c8;
+  --accent: #59d0ff;
+  --accent-strong: #1a88ff;
+  --warning: #ffc76b;
+  --danger: #ff7f9c;
+  --success: #69f0c7;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(26, 136, 255, 0.16), transparent 32%),
+    radial-gradient(circle at top right, rgba(89, 208, 255, 0.11), transparent 24%),
+    linear-gradient(180deg, #07111f 0%, #040b14 48%, #02060c 100%);
+  color: var(--text);
+  font-family: "Bahnschrift", "Aptos", "Segoe UI", sans-serif;
+}
+
+body {
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

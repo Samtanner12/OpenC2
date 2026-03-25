@@ -1,0 +1,10 @@
+{
+"SpaProxyServer": {
+"ServerUrl": "https://localhost:49446",
+"RedirectUrl": "",
+"LaunchCommand": "npm start",
+"WorkingDirectory": "/Users/samtanner/openc2/OpenC2/OpenC2.Server/../openc2.client",
+"MaxTimeoutInSeconds": "120",
+"KeepRunning": "false"
+}
+}

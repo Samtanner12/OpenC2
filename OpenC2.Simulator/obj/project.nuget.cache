@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "nYoq6Xb564Y=",
+  "success": true,
+  "projectFilePath": "/Users/samtanner/openc2/OpenC2/OpenC2.Simulator/OpenC2.Simulator.csproj",
+  "expectedPackageFiles": [
+    "/Users/samtanner/.nuget/packages/protobuf-net/3.2.30/protobuf-net.3.2.30.nupkg.sha512",
+    "/Users/samtanner/.nuget/packages/protobuf-net.core/3.2.30/protobuf-net.core.3.2.30.nupkg.sha512",
+    "/Users/samtanner/.nuget/packages/system.collections.immutable/7.0.0/system.collections.immutable.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
