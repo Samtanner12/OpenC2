@@ -120,8 +120,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   public signalrOnline = false;
   public leftPanelHidden = false;
   public rightPanelHidden = false;
-  public showMissionHud = true;
-  public showTipHud = true;
+  public showCommandHistory = false;
+  public showMissionHud = false;
+  public showTipHud = false;
   public geofenceName = 'Ad hoc geofence';
   public geofenceRadiusMeters = 1200;
   public geofencePlacementArmed = false;
@@ -132,6 +133,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   public behaviorTargetTrackId = '';
   public behaviorRadiusMeters = 180;
   public behaviorCruiseAltitudeMeters?: number;
+  public trackSourceFilter = 'all';
+  public trackGeofenceFilter = 'all';
+  public trackAlertFilter = 'all';
+  public trackTypeFilter = 'all';
   public editSiteName = '';
   public editSiteRadiusMeters = 1200;
   public editSitePosture = 'Geofence';
@@ -194,6 +199,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly trackVisualStateById = new Map<string, string>();
   private readonly trackLabelStateById = new Map<string, string>();
   private readonly terrainHeightByCellKey = new Map<string, number>();
+  private readonly pendingTerrainSampleCellKeys = new Set<string>();
   private readonly lastWeatherFetchAtMsByTrackId = new Map<string, number>();
   private commandOverlayEntityIds = new Set<string>();
   private hydratedTrackFormId = '';
@@ -245,10 +251,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       if (!this.canInitializeWebGl()) {
-        this.globeMode = 'fallback';
-        this.globeReady = true;
-        this.dismissGlobeOverlay = true;
-        this.globeError = '3D globe unavailable on this machine. Fallback tactical view active.';
+        this.globeReady = false;
+        this.dismissGlobeOverlay = false;
+        this.globeError = '3D globe unavailable on this machine. Cesium/WebGL is required for this console.';
         return;
       }
 
@@ -287,7 +292,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.viewer.scene.screenSpaceCameraController.maximumZoomDistance = 20000000;
       this.viewer.scene.renderError.addEventListener((sceneError: unknown) => {
         console.error(sceneError);
-        this.switchToFallback('3D rendering became unavailable in Chrome. Tactical map fallback active.');
+        this.globeReady = false;
+        this.dismissGlobeOverlay = false;
+        this.globeError = '3D rendering became unavailable. Reload after restoring WebGL/Cesium support.';
       });
 
       try {
@@ -372,7 +379,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
       this.viewer.scene.canvas.addEventListener('webglcontextlost', (event: Event) => {
         event.preventDefault();
-        this.switchToFallback('3D context lost in the browser. Fallback tactical view active.');
+        this.globeReady = false;
+        this.dismissGlobeOverlay = false;
+        this.globeError = '3D context lost in the browser. Restore WebGL support and reload the console.';
       });
 
       this.globeMode = '3d';
@@ -383,7 +392,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.renderScene();
     } catch (error) {
       console.error(error);
-      this.switchToFallback('3D globe unavailable on this machine. Fallback tactical view active.');
+      this.globeReady = false;
+      this.dismissGlobeOverlay = false;
+      this.globeError = '3D globe unavailable on this machine. Cesium/WebGL is required for this console.';
     }
   }
 
@@ -1223,6 +1234,16 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.switchToFallback('3D globe dismissed by operator. Tactical map fallback active.');
   }
 
+  public returnTo3dGlobe(): void {
+    this.globeError = '';
+    this.globeMode = '3d';
+    this.dismissGlobeOverlay = true;
+    queueMicrotask(() => {
+      this.viewer?.resize?.();
+      this.viewer?.scene?.requestRender?.();
+    });
+  }
+
   private createDefaultSimulatorTrackDraft(): SimulatorTrackDraft {
     return {
       callsign: `VIPER-${Math.floor(Math.random() * 90) + 10}`,
@@ -1321,6 +1342,65 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public get canOrderSelectedTrackBehavior(): boolean {
     return !!this.selectedTrack && this.selectedTrack.source.toLowerCase() === 'simulator';
+  }
+
+  public get trackSourceOptions(): string[] {
+    const values = new Set<string>();
+    for (const track of this.snapshot?.tracks ?? []) {
+      if (track.source?.trim()) {
+        values.add(track.source.trim());
+      }
+    }
+
+    return Array.from(values).sort((left, right) => left.localeCompare(right));
+  }
+
+  public get trackTypeOptions(): string[] {
+    const values = new Set<string>();
+    for (const track of this.snapshot?.tracks ?? []) {
+      if (track.vehicleType?.trim()) {
+        values.add(track.vehicleType.trim());
+      }
+    }
+
+    return Array.from(values).sort((left, right) => left.localeCompare(right));
+  }
+
+  public get filteredTracks(): Track[] {
+    const tracks = this.snapshot?.tracks ?? [];
+    return tracks.filter(track => {
+      if (this.trackSourceFilter !== 'all' && track.source !== this.trackSourceFilter) {
+        return false;
+      }
+
+      if (this.trackAlertFilter !== 'all' && track.alertLevel !== this.trackAlertFilter) {
+        return false;
+      }
+
+      if (this.trackTypeFilter !== 'all' && track.vehicleType !== this.trackTypeFilter) {
+        return false;
+      }
+
+      if (this.trackGeofenceFilter !== 'all') {
+        const site = this.snapshot?.protectedSites.find(item => item.id === this.trackGeofenceFilter);
+        if (!site) {
+          return false;
+        }
+
+        const distanceMeters = this.calculateDistanceMeters(
+          track.latitude,
+          track.longitude,
+          site.latitude,
+          site.longitude
+        );
+
+        if (distanceMeters > site.radiusMeters) {
+          return false;
+        }
+      }
+
+      return true;
+    });
   }
 
   public get behaviorTargetOptions(): Track[] {
@@ -2421,6 +2501,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.max(track.altitudeMeters ?? 0, 30);
   }
 
+  public getTrackGroundElevationMeters(track: Track): number {
+    return this.getTerrainHeightMeters(track.latitude, track.longitude);
+  }
+
+  public getTrackAltitudeAslMeters(track: Track): number {
+    return this.getTrackGroundElevationMeters(track) + Math.max(track.altitudeMeters ?? 0, 0);
+  }
+
   private getTerrainHeightMeters(latitude: number, longitude: number): number {
     if (!this.cesium || !this.viewer) {
       return 0;
@@ -2432,11 +2520,53 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       return cachedHeight;
     }
 
+    if (this.terrainLabel === 'Ellipsoid Fallback') {
+      return 0;
+    }
+
     const cartographic = this.cesium.Cartographic.fromDegrees(longitude, latitude);
     const sampledGlobeHeight = this.viewer.scene.globe?.getHeight(cartographic);
-    const resolvedHeight = Math.max(0, sampledGlobeHeight ?? 0);
-    this.terrainHeightByCellKey.set(cacheKey, resolvedHeight);
-    return resolvedHeight;
+    if (sampledGlobeHeight != null) {
+      const resolvedHeight = Math.max(0, sampledGlobeHeight);
+      this.terrainHeightByCellKey.set(cacheKey, resolvedHeight);
+      return resolvedHeight;
+    }
+
+    this.requestTerrainHeightSample(cacheKey, latitude, longitude);
+    return 0;
+  }
+
+  private requestTerrainHeightSample(cacheKey: string, latitude: number, longitude: number): void {
+    if (!this.cesium || !this.viewer || this.pendingTerrainSampleCellKeys.has(cacheKey)) {
+      return;
+    }
+
+    const terrainProvider = this.viewer.terrainProvider;
+    if (!terrainProvider || this.terrainLabel === 'Ellipsoid Fallback') {
+      return;
+    }
+
+    this.pendingTerrainSampleCellKeys.add(cacheKey);
+    const cartographic = this.cesium.Cartographic.fromDegrees(longitude, latitude);
+    const terrainPromise =
+      terrainProvider.availability && typeof this.cesium.sampleTerrainMostDetailed === 'function'
+        ? this.cesium.sampleTerrainMostDetailed(terrainProvider, [cartographic])
+        : typeof this.cesium.sampleTerrain === 'function'
+          ? this.cesium.sampleTerrain(terrainProvider, 11, [cartographic])
+          : Promise.resolve([cartographic]);
+
+    terrainPromise
+      .then((samples: any[]) => {
+        const sampledHeight = samples?.[0]?.height;
+        this.terrainHeightByCellKey.set(cacheKey, Math.max(0, sampledHeight ?? 0));
+        this.viewer?.scene?.requestRender?.();
+      })
+      .catch((error: unknown) => {
+        console.warn('Terrain sample lookup failed.', error);
+      })
+      .finally(() => {
+        this.pendingTerrainSampleCellKeys.delete(cacheKey);
+      });
   }
 
   private createAirPosition(latitude: number, longitude: number, altitudeAboveGroundMeters: number): any {
